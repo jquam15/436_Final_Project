@@ -61,20 +61,6 @@ merge_data(2020)
 
 
 
-```{r}
-
-library(ggplot2)
-
-
-
-```{r}
-spatial_data = merge(ustrade, polygons, by.x="Country", by.y = "ADMIN")
-head(spatial_data)
-```
-
-```{r}
-write_sf(spatial_data, "output.geojson", driver = "GeoJSON")
-```
 
 
 
