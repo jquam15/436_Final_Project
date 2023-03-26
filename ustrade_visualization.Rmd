@@ -17,11 +17,6 @@ library(maps)
 ### Load in the Data
 
 
-
-
-
-
-
 ```{r}
 #read in the trade data
 ustrade = read.csv("https://github.com/jquam15/436_Final_Project/raw/main/ustrade.csv") %>%
@@ -30,6 +25,11 @@ ustrade = read.csv("https://github.com/jquam15/436_Final_Project/raw/main/ustrad
 head(ustrade)
 ```
 
+
+```{r}
+#load in the world map with latitude and longitude coordinates from the "maps" package---this allows us to plot the outline of countries
+world_map = map_data("world")
+```
 
 
 
@@ -43,8 +43,7 @@ merge_data = function(year) {
     filter(Year == year) %>%
     #create a new column called TotalTrade that is the sum of imports and exports
     mutate(TotalTrade = Imports + Exports)
-  #load in the world map with latitude and longitude coordinates from the "maps" package---this allows us to plot the outline of countries
-  world_map = map_data("world")
+  
   #merge this world map with our trade data so that we can fill countries by how much total trade they have
   world_map %>%
     #merge the two datasets by their appropriate column name---take all rows in the world map dataset (left join) as we need all of them to make the world map (even if the US didn't trade with that country we still need that country to create the map)
@@ -60,8 +59,36 @@ merge_data(2020)
 ```
 
 
+```{r}
+filtered_us = ustrade %>%
+  filter(Year == 2020)
+
+test = world_map %>%
+    #merge the two datasets by their appropriate column name---take all rows in the world map dataset (left join) as we need all of them to make the world map (even if the US didn't trade with that country we still need that country to create the map)
+    merge(filtered_us, by.x = "region", by.y = "Country", all.x = T) %>%
+    #arrange the data accordingly
+    arrange(group, order) %>%
+    select(-subregion)
 
 
+```
+
+```{r}
+#take only cases where they didn't match up
+mismatch = test[!complete.cases(test), ]
+#get list of countries that are in the world map BUT ARE NOT IN THE USTRADE data
+world_countries = unique(mismatch$region)
+#get list of ALL countries in the US trade data
+trade_countries = unique(ustrade$Country)
+```
+
+```{r}
+world_countries
+```
+
+```{r}
+trade_countries
+```
 
 
 
