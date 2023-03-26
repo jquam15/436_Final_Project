@@ -1,0 +1,130 @@
+---
+title: "436 Final Project"
+author: "John Quam"
+date: "2023-03-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(shiny)
+library(tidyverse)
+```
+
+
+### Load in the Data
+
+```{r}
+library(sf)
+library(tmap)
+```
+
+
+
+
+
+```{r}
+ustrade = read.csv("https://github.com/jquam15/436_Final_Project/raw/main/ustrade.csv") %>%
+  rename("Deficit"="Deficit.Surplus")
+head(ustrade)
+```
+
+
+```{r}
+polygons = read_sf("countries.geojson")
+head(polygons)
+```
+
+```{r}
+spatial_data = merge(ustrade, polygons, by.x="Country", by.y = "ADMIN")
+head(spatial_data)
+```
+
+```{r}
+lakes <- lakes %>%
+   group_by(id) %>%
+   mutate(
+     longitude = st_coordinates(geometry)[1, 1],
+     latitude = st_coordinates(geometry)[1, 2]
+   )
+ 
+ tm_shape(lakes) +
+   tm_polygons(col = "#00ced1")
+```
+
+
+### Helper Functions 
+
+```{r}
+
+```
+
+
+
+### UI
+
+```{r}
+# #get a list of continents
+# continents = unique(ustrade$Continent)
+# 
+# ui = fluidPage(
+#   selectInput("continent", "Select a Continent: ", continents, multiple=F),
+#   sliderInput("years", "Select a Year Range: ", 1995, 2020, c(1995, 2020), sep=""),
+#   plotOutput("lineplot"),
+#   dataTableOutput("table")
+# )
+```
+
+### Server
+
+
+
+
+
+```{r}
+# server = function(input, output) {
+#   dataInput = reactive({
+#     ustrade %>%
+#       filter(  (Year >= input$years[1]) & (Year <= input$years[2]) & (Continent == input$continent) )
+#   })
+#   
+#   output$plotOutput = renderPlot({
+#       
+#   })
+#   
+#   output$table = renderDataTable({
+#     dataInput()
+#   })
+# }
+```
+
+
+```{r}
+# shinyApp(ui, server)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
