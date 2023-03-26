@@ -9,31 +9,63 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(shiny)
 library(tidyverse)
+library(sf)
+library(maps)
 ```
 
 
 ### Load in the Data
 
-```{r}
-library(sf)
-library(tmap)
-```
+
 
 
 
 
 
 ```{r}
+#read in the trade data
 ustrade = read.csv("https://github.com/jquam15/436_Final_Project/raw/main/ustrade.csv") %>%
   rename("Deficit"="Deficit.Surplus")
+#inspect the data
 head(ustrade)
 ```
 
 
+
+
+
 ```{r}
-polygons = read_sf("countries.geojson")
-head(polygons)
+#this is a function that takes a year (selected by the user) and returns a map of total trade for the US for each country in 
+#the world that they traded with
+merge_data = function(year) {
+  #filter the ustrade dataset to only take the year the user selected
+  ustrade = ustrade %>%
+    filter(Year == year) %>%
+    #create a new column called TotalTrade that is the sum of imports and exports
+    mutate(TotalTrade = Imports + Exports)
+  #load in the world map with latitude and longitude coordinates from the "maps" package---this allows us to plot the outline of countries
+  world_map = map_data("world")
+  #merge this world map with our trade data so that we can fill countries by how much total trade they have
+  world_map %>%
+    #merge the two datasets by their appropriate column name---take all rows in the world map dataset (left join) as we need all of them to make the world map (even if the US didn't trade with that country we still need that country to create the map)
+    merge(ustrade, by.x = "region", by.y = "Country", all.x = T) %>%
+    #arrange the data accordingly
+    arrange(group, order) %>%
+    #make the plot with the countries filled in by how much they traded
+    ggplot(aes(x = long, y = lat, group = group, fill = log10(TotalTrade))) +  #take a logarithmic scale so we can differentiate between countries
+      geom_polygon() #plot the polygons
+}
+
+merge_data(2020)
 ```
+
+
+
+```{r}
+
+library(ggplot2)
+
+
 
 ```{r}
 spatial_data = merge(ustrade, polygons, by.x="Country", by.y = "ADMIN")
@@ -41,16 +73,11 @@ head(spatial_data)
 ```
 
 ```{r}
-lakes <- lakes %>%
-   group_by(id) %>%
-   mutate(
-     longitude = st_coordinates(geometry)[1, 1],
-     latitude = st_coordinates(geometry)[1, 2]
-   )
- 
- tm_shape(lakes) +
-   tm_polygons(col = "#00ced1")
+write_sf(spatial_data, "output.geojson", driver = "GeoJSON")
 ```
+
+
+
 
 
 ### Helper Functions 
