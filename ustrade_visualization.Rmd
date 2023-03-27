@@ -1,6 +1,6 @@
 ---
 title: "436 Final Project"
-author: "John Quam"
+author: "John Quam, Connor Weida"
 date: "2023-03-26"
 output: html_document
 ---
@@ -11,6 +11,9 @@ library(shiny)
 library(tidyverse)
 library(maps)
 library(DT)
+library(bslib)
+library(thematic)
+library(plotly)
 ```
 
 
@@ -25,6 +28,7 @@ ustrade = read.csv("https://github.com/jquam15/436_Final_Project/raw/main/ustrad
 head(ustrade)
 ```
 
+
 **There are several countries where the two datasets name the country differently. This next code block renames them in the world map dataset so that they match up**
 
 ```{r}
@@ -33,9 +37,7 @@ world_map = map_data("world")
 
 #there are several countries where the name of the country doesn't match up across data sources:
 
-#TODO: Western Sahara, Monaco
-
-#world countries --> trade countries
+# world countries --> trade countries
 # Antigua -> Antigua and Barbuda
 # Cocos Islands -> Cocos (Keeling) Islands
 # Czech Republic -> Czechia
@@ -61,23 +63,23 @@ world_map$region[world_map$region == "Swaziland"] = "Eswatini"
 world_map$region[world_map$region == "Taiwan"] = "Chinese Taipei"
 world_map$region[world_map$region == "UK"] = "United Kingdom"
 
-# #This is the code to identify mismtaches in how the two datsets named countries
-# filtered_us = ustrade %>%
-#   filter(Year == 2020)
-# 
-# test = world_map %>%
-#     #merge the two datasets by their appropriate column name---take all rows in the world map dataset (left join) as we need all of them to make the world map (even if the US didn't trade with that country we still need that country to create the map)
-#     merge(filtered_us, by.x = "region", by.y = "Country", all.x = T) %>%
-#     #arrange the data accordingly
-#     arrange(group, order) %>%
-#     select(-subregion)
+#This is the code to identify mismtaches in how the two datsets named countries
+filtered_us = ustrade %>%
+  filter(Year == 2020)
 
-# #take only cases where they didn't match up
-# mismatch = test[!complete.cases(test), ]
-# #get list of countries that are in the world map BUT ARE NOT IN THE USTRADE data
-# world_countries = unique(mismatch$region)
-# #get list of ALL countries in the US trade data
-# trade_countries = unique(ustrade$Country)
+test = world_map %>%
+    #merge the two datasets by their appropriate column name---take all rows in the world map dataset (left join) as we need all of them to make the world map (even if the US didn't trade with that country we still need that country to create the map)
+    merge(filtered_us, by.x = "region", by.y = "Country", all.x = T) %>%
+    #arrange the data accordingly
+    arrange(group, order) %>%
+    select(-subregion)
+
+#take only cases where they didn't match up
+mismatch = test[!complete.cases(test), ]
+#get list of countries that are in the world map BUT ARE NOT IN THE USTRADE data
+world_countries = unique(mismatch$region)
+#get list of ALL countries in the US trade data
+trade_countries = unique(ustrade$Country)
 
 # #sort in alphabetical order
 # sort(world_countries)
@@ -101,22 +103,37 @@ us_world_trade = function(year) {
   ustrade = ustrade %>%
     filter(Year == year) %>%
     #create a new column called TotalTrade that is the sum of imports and exports
-    mutate(TotalTrade = Imports + Exports)
+    mutate(TotalTrade = log10(Imports + Exports))
   
   #merge this world map with our trade data so that we can fill countries by how much total trade they have
-  world_map %>%
+  plotting_df = world_map %>%
     #merge the two datasets by their appropriate column name---take all rows in the world map dataset (left join) as we need all of them to make the world map (even if the US didn't trade with that country we still need that country to create the map)
     merge(ustrade, by.x = "region", by.y = "Country", all.x = T) %>%
     #arrange the data accordingly
-    arrange(group, order) %>%
-    #make the plot with the countries filled in by how much they traded
-    ggplot(aes(x = long, y = lat, group = group, fill = log10(TotalTrade))) +  #take a logarithmic scale so we can differentiate between countries
-      geom_polygon() + #plot the polygons
-      #fill colors from light red to dark red
-      scale_fill_gradient(low="#ffcccb", high="#8b0000", na.value = "#000000")
+    arrange(group, order)
+  
+  #make the plot with the countries filled in by how much they traded
+  p = ggplot(plotting_df, aes(x = long, y = lat, group = group, fill = TotalTrade)) +  #take a logarithmic scale so we can differentiate between countries
+    geom_polygon(aes(text = paste0("Country: ", region, "\n", "Imports: ", format(Imports, scientific=T, digits=3), "\n", "Exports: ", format(Exports, sceintific=T, digits=3)))) + #plot the polygons with tooltip
+    #fill colors from light red to dark red
+    scale_fill_gradient(low="#ffcccb", high="#8b0000", na.value = "#000000") +
+    #remove grid lines and axis labels (lat and long) as they aren't important to the plot
+    theme(
+      panel.grid = element_blank(),
+      axis.title = element_blank(),
+      axis.ticks = element_blank(),
+      axis.text = element_blank(),
+      title = element_text(size=18),
+      legend.text = element_text(size=12),
+      legend.title = element_text(size=12)
+    ) +
+    #change the title to the legend
+    labs(title=paste0("Heatmap of US Total Trade by Country for ", year), fill = "Total Trade")
+  #want the plot to have tooltips so use plotly package to create the plot
+  ggplotly(p)
 }
 
-us_world_trade(2012)
+#us_world_trade(2020)
 ```
 
 ### UI
@@ -125,44 +142,60 @@ us_world_trade(2012)
 #get a list of continents
 years = unique(ustrade$Year)
 #get descriptive text
-descriptive_text = "Some descriptive text here"
+descriptive_text_worldmap = "This visual allows you to select a year and then displays a heatmap of the world with the total trade (Imports + Exports) that the US did with each country. The data is scaled by taking the common logarithm of total trade, so that there is more of a distinction between countries. The purpose of this plot is to give a general idea of who the US is trading the most with for a certain year. Darker shades of red mean more trade while lighter shades of red mean less trade. Countries that are shaded with black either did not trade with the US, are a US territory, or are a territory of another country and therefore their trade is accounted for already. In earlier years, some countries are also shaded black because they did not exist for that year (Ex: South Sudan). Additionally if you'd like more information you can hover over a country and see the country's name and common logarithm of total trade. You also can Here are some helpful benchmarks for understanding the values for the common logarithm of total trade in dollars: 6 = million, 7 = ten million, 8 = hundred million, 9 = billion, and so on. You can zoom in on the plot by clicking and holding to create a box brush."
 
 ui = fluidPage(
+  theme = bs_theme(
+    bootswatch = "darkly",
+    base_font = font_google("PT Serif")
+  ),
+  #carry the theme (font style) throughout the table and plots
+  thematic_shiny(font="auto"),
+  #set a title for the visualization
+  titlePanel("Analyzing US Trade from 1995 to 2020"),
+  #set up the main panel and side panel for the heatmap
   sidebarLayout(
+    #the side panel will hold the box to select a year and the descriptive text
     sidebarPanel(
+      #grabs the user input from a list of years (default is 2020)
       selectInput("year", "Select a Year: ", years, selected=2020, multiple=F),
-      textOutput("descriptive_text")
+      #this element is the descriptive text for the plot
+      textOutput("descriptive_text_worldmap")
     ),
+    #set up the main panel
     mainPanel(
-      plotOutput("worldmap", height=600)
+      #plot output for the world heat map and make the plot taller so it isn't super stretched
+      plotlyOutput("worldmap", height=600)
     )
     
   ),
   
+  #output a data table that is sorted in descending order by Total Trade
   dataTableOutput("table")
 )
 ```
+
 
 ### Server
 
 ```{r}
 server = function(input, output) {
   #render the world map
-  output$worldmap = renderPlot({
+  output$worldmap = renderPlotly({
     #call the helper function to generate the plot with the user input specifying the year
     us_world_trade(input$year)
   })
 
-  #this renders a datatable sorted by the top trade partners by Imports + Exports in descending order
+  #this renders a datatable sorted by the top trade partners by Imports + Exports in descending order (pair with world map)
   output$table = renderDataTable({
     ustrade %>%
       filter(Year == input$year) %>%
       mutate(TotalTrade = Imports + Exports) %>%
       arrange(-TotalTrade)
   })
-  
-  output$descriptive_text = renderText({
-    descriptive_text
+  #this outputs the descriptive text for the side panel for the world map
+  output$descriptive_text_worldmap = renderText({
+    descriptive_text_worldmap
   })
 }
 ```
