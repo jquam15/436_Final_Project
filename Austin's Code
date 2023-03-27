@@ -1,0 +1,47 @@
+---
+title: "Import/Export by Country"
+output: html_document
+date: '2023-03-26'
+---
+
+
+
+```{r}
+library(shiny)
+library(shinyWidgets)
+
+data<-read.csv("https://github.com/jquam15/436_Final_Project/raw/main/ustrade.csv")%>%
+  rename("Deficit"="Deficit.Surplus")
+
+two.line.plot<-function(data, start_date, end_date, country){
+  data%>%
+    filter(country==Country & start_date<=Year & end_date>=Year)%>%
+    mutate(Deficit=-Deficit)%>%
+    pivot_longer(cols=c("Imports","Exports"), names_to="Type", values_to = "Value")%>%
+    ggplot(aes(x=Year))+
+    geom_line(aes(y=Value/1000000000, group=Type, col=Type))+
+    labs(title=paste0("US Imports and Exports with ", country), x="Year", y="USD (in billions)")+
+    scale_color_manual(values=c("darkgreen", "darkblue"))+
+    geom_col(aes(y=Deficit/1000000000, fill="Deficit"), position = "identity", alpha=.1)+
+    scale_fill_manual(values="red")+
+    theme(legend.key=element_blank(),
+          legend.title=element_blank(),
+          legend.box="vertical")+
+    scale_x_continuous(breaks=end_date:start_date)
+}
+
+ui<-fluidPage(
+  plotOutput("linePlot"),
+  selectInput("country", "Country", unique(data$Country), selected=c("Mexico")),
+  sliderInput("year", "Year", 1995, 2020, c(1995, 2020), sep = ""),
+)
+server <- function(input, output) {
+  output$linePlot <- renderPlot({
+    two.line.plot(data, input$year[1], input$year[2], input$country)
+  })
+}
+
+shinyApp(ui, server)
+  
+
+```
