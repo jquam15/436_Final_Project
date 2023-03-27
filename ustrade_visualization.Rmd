@@ -9,8 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(shiny)
 library(tidyverse)
-library(sf)
 library(maps)
+library(DT)
 ```
 
 
@@ -25,19 +25,77 @@ ustrade = read.csv("https://github.com/jquam15/436_Final_Project/raw/main/ustrad
 head(ustrade)
 ```
 
+**There are several countries where the two datasets name the country differently. This next code block renames them in the world map dataset so that they match up**
 
 ```{r}
 #load in the world map with latitude and longitude coordinates from the "maps" package---this allows us to plot the outline of countries
 world_map = map_data("world")
+
+#there are several countries where the name of the country doesn't match up across data sources:
+
+#TODO: Western Sahara, Monaco
+
+#world countries --> trade countries
+# Antigua -> Antigua and Barbuda
+# Cocos Islands -> Cocos (Keeling) Islands
+# Czech Republic -> Czechia
+# French Southern and Antarctic Lands -> French South Antarctic Territory
+# Grenadines -> Grenada
+# Ivory Coast --> Cote d'Ivoire
+# Myanmar --> Burma
+# Republic of Congo --> Republic of the Congo
+# Swaziland --> Eswatini
+# UK --> United Kingdom 
+
+#change these country names in the "world_map" dataset so that they match up with the "ustrade" dataset
+world_map$region[world_map$region == "Antigua"] = "Antigua and Barbuda"
+world_map$region[world_map$region == "Cocos Islands"] = "Cocos (Keeling) Islands"
+world_map$region[world_map$region == "Czech Republic"] = "Czechia"
+world_map$region[world_map$region == "French Southern and Antarctic Lands"] = "French South Antarctic Territory"
+world_map$region[world_map$region == "Grenadines"] = "Grenada"
+world_map$region[world_map$region == "Ivory Coast"] = "Cote d'Ivoire"
+world_map$region[world_map$region == "Myanmar"] = "Burma"
+world_map$region[world_map$region == "Republic of Congo"] = "Republic of the Congo"
+world_map$region[world_map$region == "Swaziland"] = "Eswatini"
+world_map$region[world_map$region == "UK"] = "United Kingdom"
+
+# #This is the code to identify mismtaches in how the two datsets named countries
+# filtered_us = ustrade %>%
+#   filter(Year == 2020)
+# 
+# test = world_map %>%
+#     #merge the two datasets by their appropriate column name---take all rows in the world map dataset (left join) as we need all of them to make the world map (even if the US didn't trade with that country we still need that country to create the map)
+#     merge(filtered_us, by.x = "region", by.y = "Country", all.x = T) %>%
+#     #arrange the data accordingly
+#     arrange(group, order) %>%
+#     select(-subregion)
+
+# #take only cases where they didn't match up
+# mismatch = test[!complete.cases(test), ]
+# #get list of countries that are in the world map BUT ARE NOT IN THE USTRADE data
+# world_countries = unique(mismatch$region)
+# #get list of ALL countries in the US trade data
+# trade_countries = unique(ustrade$Country)
+
+# #sort in alphabetical order
+# sort(world_countries)
+
+# #sort in alphabetical order
+# sort(trade_countries)
+
+#some countries the US doesn't trade with---this accounts for the remaining countries in world_countries that are not changed above
+
 ```
 
 
+### Helper Functions
 
+**This is a function that takes a year, merges data to get both latitude/longitude location and trade info, and outputs a world map colored by which countries the US trades with the most (dark red means they trade with the country a lot, light red means they don't trade much). In the case of a country that is black, the US either doesn't trade with them (Ex: the US doesn't trade with itself) or the country is considered as part of another country (French Guiana --> France).**
 
 ```{r}
 #this is a function that takes a year (selected by the user) and returns a map of total trade for the US for each country in 
 #the world that they traded with
-merge_data = function(year) {
+us_world_trade = function(year) {
   #filter the ustrade dataset to only take the year the user selected
   ustrade = ustrade %>%
     filter(Year == year) %>%
@@ -52,95 +110,66 @@ merge_data = function(year) {
     arrange(group, order) %>%
     #make the plot with the countries filled in by how much they traded
     ggplot(aes(x = long, y = lat, group = group, fill = log10(TotalTrade))) +  #take a logarithmic scale so we can differentiate between countries
-      geom_polygon() #plot the polygons
+      geom_polygon() + #plot the polygons
+      #fill colors from light red to dark red
+      scale_fill_gradient(low="#ffcccb", high="#8b0000", na.value = "#000000")
 }
 
-merge_data(2020)
+us_world_trade(2012)
 ```
-
-
-```{r}
-filtered_us = ustrade %>%
-  filter(Year == 2020)
-
-test = world_map %>%
-    #merge the two datasets by their appropriate column name---take all rows in the world map dataset (left join) as we need all of them to make the world map (even if the US didn't trade with that country we still need that country to create the map)
-    merge(filtered_us, by.x = "region", by.y = "Country", all.x = T) %>%
-    #arrange the data accordingly
-    arrange(group, order) %>%
-    select(-subregion)
-
-
-```
-
-```{r}
-#take only cases where they didn't match up
-mismatch = test[!complete.cases(test), ]
-#get list of countries that are in the world map BUT ARE NOT IN THE USTRADE data
-world_countries = unique(mismatch$region)
-#get list of ALL countries in the US trade data
-trade_countries = unique(ustrade$Country)
-```
-
-```{r}
-world_countries
-```
-
-```{r}
-trade_countries
-```
-
-
-
-
-### Helper Functions 
-
-```{r}
-
-```
-
-
 
 ### UI
 
 ```{r}
-# #get a list of continents
-# continents = unique(ustrade$Continent)
-# 
-# ui = fluidPage(
-#   selectInput("continent", "Select a Continent: ", continents, multiple=F),
-#   sliderInput("years", "Select a Year Range: ", 1995, 2020, c(1995, 2020), sep=""),
-#   plotOutput("lineplot"),
-#   dataTableOutput("table")
-# )
+#get a list of continents
+years = unique(ustrade$Year)
+#get descriptive text
+descriptive_text = "Some descriptive text here"
+
+ui = fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("year", "Select a Year: ", years, selected=2020, multiple=F),
+      textOutput("descriptive_text")
+    ),
+    mainPanel(
+      plotOutput("worldmap", height=600)
+    )
+    
+  ),
+  
+  dataTableOutput("table")
+)
 ```
 
 ### Server
 
-
-
-
-
 ```{r}
-# server = function(input, output) {
-#   dataInput = reactive({
-#     ustrade %>%
-#       filter(  (Year >= input$years[1]) & (Year <= input$years[2]) & (Continent == input$continent) )
-#   })
-#   
-#   output$plotOutput = renderPlot({
-#       
-#   })
-#   
-#   output$table = renderDataTable({
-#     dataInput()
-#   })
-# }
+server = function(input, output) {
+  #render the world map
+  output$worldmap = renderPlot({
+    #call the helper function to generate the plot with the user input specifying the year
+    us_world_trade(input$year)
+  })
+
+  #this renders a datatable sorted by the top trade partners by Imports + Exports in descending order
+  output$table = renderDataTable({
+    ustrade %>%
+      filter(Year == input$year) %>%
+      mutate(TotalTrade = Imports + Exports) %>%
+      arrange(-TotalTrade)
+  })
+  
+  output$descriptive_text = renderText({
+    descriptive_text
+  })
+}
 ```
 
+### Shiny App
 
 ```{r}
-# shinyApp(ui, server)
+shinyApp(ui, server)
 ```
 
 
