@@ -1,0 +1,72 @@
+---
+title: "milestone 2"
+author: "camryn tautges"
+date: "2023-03-26"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(shiny)
+library(scales)
+library(shiny)
+library(tidyverse)
+
+#read in data
+ustrade = read.csv("https://github.com/jquam15/436_Final_Project/raw/main/ustrade.csv") %>%
+  rename("Deficit"="Deficit.Surplus")
+#head(ustrade)
+```
+
+
+```{r}
+#create table to use to plot data, sum deficit by year
+deficit = ustrade %>%
+  group_by(Year) %>%
+  summarise(Deficit = (sum(Deficit)))
+#deficit
+
+#create data table data with dollar format
+deficit_dollars = ustrade %>%
+  group_by(Year) %>%
+  summarise(Deficit = scales::dollar_format()(sum(Deficit)))
+#deficit_dollars
+```
+
+```{r}
+### Defines the app
+ ui <- fluidPage(
+   titlePanel("Time Series of United States Trade Deficit/Surplus"),
+   plotOutput("time_series"),
+   dataTableOutput("dt")
+ )
+ 
+## creates outputs
+ server <- function(input, output) {
+   ##plot output, deficit time series
+   output$time_series <- renderPlot(ggplot(deficit, aes(x=Year, y=Deficit), xlim = c(1995,2020)) +
+   geom_line(color = "red") +
+   scale_color_brewer(palette = "Set1") +
+   labs(
+    x = "Year",
+    y = "Trade Deficit/Surplus ($)",
+    title = "Trade Deficit/Surplus Over Time"
+  ) +
+  theme_bw() + #remove tick marks
+  theme(
+    legend.position = "top right",
+    panel.grid.minor = element_blank(),
+    axis.ticks = element_blank()
+  ) + 
+    #create own y-axis labels because scale_y_log10 was not working properly
+  scale_y_continuous(breaks = c(-10e11, -9e11,-8e11,-7e11,-6e11,-5e11,-4e11,-3e11,-2e11,-1e11), labels = c("-1 trillion","-900 billion","-800 billion","-700 billion","-600 billion","-500 billion","-400 billion","-300 billion","-200 billion", "-100 billion")) + #remove linespace
+  scale_x_continuous(expand = c(0, 0, 0, 0), breaks=seq(1995,2020,1))) 
+   #data table output
+   output$dt <- renderDataTable(deficit_dollars)
+ }
+ 
+ app <- shinyApp(ui, server)
+ app
+```
+
