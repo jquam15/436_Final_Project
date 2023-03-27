@@ -45,6 +45,7 @@ world_map = map_data("world")
 # Myanmar --> Burma
 # Republic of Congo --> Republic of the Congo
 # Swaziland --> Eswatini
+# Taiwan --> Chinese Taipei
 # UK --> United Kingdom 
 
 #change these country names in the "world_map" dataset so that they match up with the "ustrade" dataset
@@ -57,6 +58,7 @@ world_map$region[world_map$region == "Ivory Coast"] = "Cote d'Ivoire"
 world_map$region[world_map$region == "Myanmar"] = "Burma"
 world_map$region[world_map$region == "Republic of Congo"] = "Republic of the Congo"
 world_map$region[world_map$region == "Swaziland"] = "Eswatini"
+world_map$region[world_map$region == "Taiwan"] = "Chinese Taipei"
 world_map$region[world_map$region == "UK"] = "United Kingdom"
 
 # #This is the code to identify mismtaches in how the two datsets named countries
@@ -86,7 +88,6 @@ world_map$region[world_map$region == "UK"] = "United Kingdom"
 #some countries the US doesn't trade with---this accounts for the remaining countries in world_countries that are not changed above
 
 ```
-
 
 ### Helper Functions
 
