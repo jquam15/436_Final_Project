@@ -1,12 +1,3 @@
----
-title: "436 Final Project"
-author: "John Quam, Connor Weida"
-date: "2023-03-26"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 library(shiny)
 library(tidyverse)
 library(maps)
@@ -14,25 +5,11 @@ library(DT)
 library(bslib)
 library(thematic)
 library(plotly)
-```
 
-
-### Load in the Trade Data
-
-
-```{r}
 #read in the trade data
 ustrade = read.csv("https://github.com/jquam15/436_Final_Project/raw/main/ustrade.csv") %>%
   rename("Deficit"="Deficit.Surplus")
-#inspect the data
-head(ustrade)
-```
 
-### Load in and Modify the World Data
-
-**There are several countries where the two datasets name the country differently. This next code block renames them in the world map dataset so that they match up**
-
-```{r}
 #load in the world map with latitude and longitude coordinates from the "maps" package---this allows us to plot the outline of countries
 world_map = map_data("world")
 
@@ -64,51 +41,11 @@ world_map$region[world_map$region == "Swaziland"] = "Eswatini"
 world_map$region[world_map$region == "Taiwan"] = "Chinese Taipei"
 world_map$region[world_map$region == "UK"] = "United Kingdom"
 
-#This is the code to identify mismtaches in how the two datsets named countries
-filtered_us = ustrade %>%
-  filter(Year == 2020)
-
-test = world_map %>%
-    #merge the two datasets by their appropriate column name---take all rows in the world map dataset (left join) as we need all of them to make the world map (even if the US didn't trade with that country we still need that country to create the map)
-    merge(filtered_us, by.x = "region", by.y = "Country", all.x = T) %>%
-    #arrange the data accordingly
-    arrange(group, order) %>%
-    select(-subregion)
-
-#take only cases where they didn't match up
-mismatch = test[!complete.cases(test), ]
-#get list of countries that are in the world map BUT ARE NOT IN THE USTRADE data
-world_countries = unique(mismatch$region)
-#get list of ALL countries in the US trade data
-trade_countries = unique(ustrade$Country)
-
-# #sort in alphabetical order
-# sort(world_countries)
-
-# #sort in alphabetical order
-# sort(trade_countries)
-
-#some countries the US doesn't trade with---this accounts for the remaining countries in world_countries that are not changed above
-
-```
-
-### Manipulate Data to Get Trade Deficit Data
-
-```{r}
 #create table to use to plot data, sum deficit by year
 deficit = ustrade %>%
   group_by(Year) %>%
   summarise(Deficit = (sum(Deficit)))
-deficit
-```
 
-
-
-### Helper Functions
-
-**This is a function that takes a year, merges data to get both latitude/longitude location and trade info, and outputs a world map colored by which countries the US trades with the most (dark red means they trade with the country a lot, light red means they don't trade much). In the case of a country that is black, the US either doesn't trade with them (Ex: the US doesn't trade with itself) or the country is considered as part of another country (French Guiana --> France).**
-
-```{r}
 #this is a function that takes a year (selected by the user) and returns a map of total trade for the US for each country in 
 #the world that they traded with
 us_world_trade = function(year) {
@@ -146,40 +83,30 @@ us_world_trade = function(year) {
   ggplotly(p)
 }
 
-us_world_trade(2020)
-```
-
-
-```{r}
 #this is a function that plots the US total trade deficit by year over time
 plot_ts_deficit = function() {
   ggplot(deficit, aes(x=Year, y=Deficit), xlim = c(1995,2020)) +
-   geom_line(color = "red") +
-   scale_color_brewer(palette = "Set1") +
-   labs(
-    x = "Year",
-    y = "Trade Deficit",
-    title = "Trade Deficit Over Time"
-  ) +
-  theme(
-    legend.position = "top right",
-    panel.grid.minor = element_blank(),
-    axis.ticks = element_blank(),
-    title = element_text(size=18),
-    axis.text = element_text(size=12)
-  ) + 
+    geom_line(color = "red") +
+    scale_color_brewer(palette = "Set1") +
+    labs(
+      x = "Year",
+      y = "Trade Deficit",
+      title = "Trade Deficit Over Time"
+    ) +
+    theme(
+      legend.position = "top right",
+      panel.grid.minor = element_blank(),
+      axis.ticks = element_blank(),
+      title = element_text(size=18),
+      axis.text = element_text(size=12)
+    ) + 
     #create own y-axis labels because scale_y_log10 was not working properly
-  scale_y_continuous(breaks = c(-10e11, -9e11,-8e11,-7e11,-6e11,-5e11,-4e11,-3e11,-2e11,-1e11), 
-                     labels = c("-1 trillion","-900 billion","-800 billion","-700 billion","-600 billion","-500 billion",
-                                "-400 billion","-300 billion","-200 billion", "-100 billion")) + #remove linespace
-  scale_x_continuous(expand = c(0, 0, 0, 0), breaks=seq(1995,2021,1)) 
+    scale_y_continuous(breaks = c(-10e11, -9e11,-8e11,-7e11,-6e11,-5e11,-4e11,-3e11,-2e11,-1e11), 
+                       labels = c("-1 trillion","-900 billion","-800 billion","-700 billion","-600 billion","-500 billion",
+                                  "-400 billion","-300 billion","-200 billion", "-100 billion")) + #remove linespace
+    scale_x_continuous(expand = c(0, 0, 0, 0), breaks=seq(1995,2021,1)) 
 }
 
-plot_ts_deficit()
-```
-
-
-```{r}
 #this is a function to plot trade for imports/exports between the US and the user selected country over the user selected year range
 #it also illustrates the deficit between the us and each country by year
 two.line.plot<-function(start_date, end_date, country){
@@ -202,13 +129,6 @@ two.line.plot<-function(start_date, end_date, country){
     scale_x_continuous(breaks=end_date:start_date)
 }
 
-two.line.plot(1995, 2020, "China")
-```
-
-
-### UI
-
-```{r}
 #get a list of continents
 years = unique(ustrade$Year)
 #get descriptive text
@@ -256,20 +176,15 @@ ui = fluidPage(
     fluidRow(
       style = "margin-top: 3em;",
       column(8, align="center", offset=2,
-              selectInput("country", "Select a Country: ", unique(ustrade$Country), selected=c("Mexico"), multiple=F),
-              sliderInput("year_ts", "Select a Year", 1995, 2020, c(1995, 2020), sep = ""),
-              plotOutput("country_ts", height=600)
+             selectInput("country", "Select a Country: ", unique(ustrade$Country), selected=c("Mexico"), multiple=F),
+             sliderInput("year_ts", "Select a Year", 1995, 2020, c(1995, 2020), sep = ""),
+             plotOutput("country_ts", height=600)
       )
     )
   )
   
 )
-```
 
-
-### Server
-
-```{r}
 server = function(input, output) {
   #render the world map
   output$worldmap = renderPlotly({
@@ -284,7 +199,7 @@ server = function(input, output) {
   output$country_ts <- renderPlot({
     two.line.plot(input$year_ts[1], input$year_ts[2], input$country)
   })
-
+  
   #this renders a datatable sorted by the top trade partners by Imports + Exports in descending order (pair with world map)
   output$table = renderDataTable({
     ustrade %>%
@@ -297,36 +212,6 @@ server = function(input, output) {
     descriptive_text_worldmap
   })
 }
-```
 
-### Shiny App
-
-```{r}
 shinyApp(ui, server)
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
