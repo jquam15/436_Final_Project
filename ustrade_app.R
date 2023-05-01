@@ -98,13 +98,15 @@ plot_ts_deficit = function() {
       panel.grid.minor = element_blank(),
       axis.ticks = element_blank(),
       title = element_text(size=18),
-      axis.text = element_text(size=12)
+      axis.text = element_text(size=12),
+      legend.text = element_text(size=12),
+      legend.title = element_text(size=12)
     ) + 
     #create own y-axis labels because scale_y_log10 was not working properly
     scale_y_continuous(breaks = c(-10e11, -9e11,-8e11,-7e11,-6e11,-5e11,-4e11,-3e11,-2e11,-1e11), 
                        labels = c("-1 trillion","-900 billion","-800 billion","-700 billion","-600 billion","-500 billion",
                                   "-400 billion","-300 billion","-200 billion", "-100 billion")) + #remove linespace
-    scale_x_continuous(expand = c(0, 0, 0, 0), breaks=seq(1995,2021,1)) 
+    scale_x_continuous(breaks = 1995:2020) 
 }
 
 #this is a function to plot trade for imports/exports between the US and the user selected country over the user selected year range
@@ -112,7 +114,7 @@ plot_ts_deficit = function() {
 two.line.plot<-function(start_date, end_date, country){
   ustrade%>%
     filter(Country==country & Year<=end_date & Year>=start_date)%>%
-    mutate(Deficit=-Deficit)%>%
+    #mutate(Deficit=-Deficit)%>%
     pivot_longer(cols=c("Imports","Exports"), names_to="Type", values_to = "Value")%>%
     ggplot(aes(x=Year))+
     geom_line(aes(y=Value/1000000000, group=Type, col=Type))+
@@ -133,6 +135,13 @@ two.line.plot<-function(start_date, end_date, country){
 years = unique(ustrade$Year)
 #get descriptive text
 descriptive_text_worldmap = "This visual allows you to select a year and then displays a heatmap of the world with the total trade (Imports + Exports) that the US did with each country. The data is scaled by taking the common logarithm of total trade, so that there is more of a distinction between countries. The purpose of this plot is to give a general idea of who the US is trading the most with for a certain year. Darker shades of red mean more trade while lighter shades of red mean less trade. Countries that are shaded with black either did not trade with the US, are a US territory, or are a territory of another country and therefore their trade is accounted for already. In earlier years, some countries are also shaded black because they did not exist for that year (Ex: South Sudan). Additionally if you'd like more information you can hover over a country and see the country's name and common logarithm of total trade. You also can Here are some helpful benchmarks for understanding the values for the common logarithm of total trade in dollars: 6 = million, 7 = ten million, 8 = hundred million, 9 = billion, and so on. You can zoom in on the plot by clicking and holding to create a box brush."
+
+
+#UI
+
+years = unique(ustrade$Year)
+descriptive_text_worldmap = "This visual allows you to select a year and then displays a heatmap of the world with the total trade (Imports + Exports) that the US did with each country. The data is scaled by taking the common logarithm of total trade, so that there is more of a distinction between countries. The purpose of this plot is to give a general idea of who the US is trading the most with for a certain year. Darker shades of red mean more trade while lighter shades of red mean less trade. Countries that are shaded with black either did not trade with the US, are a US territory, or are a territory of another country and therefore their trade is accounted for already. In earlier years, some countries are also shaded black because they did not exist for that year (Ex: South Sudan). Additionally if you'd like more information you can hover over a country and see the country's name and common logarithm of total trade. You also can see the amount of imports and exports. Here are some helpful benchmarks for understanding the values for the common logarithm of total trade in dollars: 6 = million, 7 = ten million, 8 = hundred million, 9 = billion, and so on. You can zoom in on the plot by clicking and holding to create a box brush."
+descriptive_text_ts = "If you are more interested with trade between the US and a specific country over time, you can use this visual to select a country and year range. This visual shows both imports and exports between the US and the selected country, as well as how the trade deficit/surplus has changed over time. Countries that have deficit values that are positive indicate that the US has a trade surplus of the specified value when trading with that country. Negative values indicate a trade deficit."
 
 ui = fluidPage(
   theme = bs_theme(
@@ -160,58 +169,89 @@ ui = fluidPage(
     
   ),
   
-  #output a data table that is sorted in descending order by Total Trade
-  dataTableOutput("table"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("country", "Select a Country: ", unique(ustrade$Country), selected=c("Mexico"), multiple=F),
+      sliderInput("year_ts", "Select a Year Range:", 1995, 2020, c(1995, 2020), sep = ""),
+      textOutput("descriptive_text_ts")
+    ),
+    mainPanel(
+      plotOutput("country_ts", height=600)
+    ),
+    position = "right"
+  ),
+  
+  div(
+    fluidRow(
+      style="margin-top: 3em",
+      h1("Total US Trade Deficit Over Time", align="center"),
+      p("*Click and hold to brush plot and update the data table*", align="center")
+    )
+  ),
   
   #set up the UI for the total trade deficit over time
   div(
     fluidRow(
       style = "margin-top: 3em;",
-      column(8, align="center", offset=2, plotOutput("ts_deficit", height=600))
-    )
+      column(8, align="center", offset=2, plotOutput("ts_deficit", height=600, brush = brushOpts("plot_brush", direction="x")))
+    ),
   ),
   
-  #set up the UI for the individual country information
-  div(
-    fluidRow(
-      style = "margin-top: 3em;",
-      column(8, align="center", offset=2,
-             selectInput("country", "Select a Country: ", unique(ustrade$Country), selected=c("Mexico"), multiple=F),
-             sliderInput("year_ts", "Select a Year", 1995, 2020, c(1995, 2020), sep = ""),
-             plotOutput("country_ts", height=600)
-      )
-    )
-  )
+  #output a data table that is sorted in descending order by Total Trade
+  dataTableOutput("table")
   
 )
 
+
+#Server 
 server = function(input, output) {
   #render the world map
   output$worldmap = renderPlotly({
     #call the helper function to generate the plot with the user input specifying the year
-    us_world_trade(input$year)
-  })
+    ggplotly(us_world_trade(input$year)) 
+  }) 
   #render the plot with the US total deficit over time 
   output$ts_deficit = renderPlot({
     plot_ts_deficit()
   })
   
+  #render country ts plot
   output$country_ts <- renderPlot({
     two.line.plot(input$year_ts[1], input$year_ts[2], input$country)
   })
   
-  #this renders a datatable sorted by the top trade partners by Imports + Exports in descending order (pair with world map)
+  
+  #handle brushing
+  df_selection = reactiveVal(rep(TRUE, nrow(ustrade)))
+  observeEvent(
+    input$plot_brush, {
+      new_values = brushedPoints(ustrade, input$plot_brush, allRows=TRUE)$selected_
+      df_selection(new_values)
+    }
+  )
+  
+  #output the data table with only the brushed rows
   output$table = renderDataTable({
     ustrade %>%
-      filter(Year == input$year) %>%
-      mutate(TotalTrade = Imports + Exports) %>%
-      arrange(-TotalTrade)
+      mutate(selected = df_selection()) %>%
+      filter(selected) %>%
+      arrange(Deficit) %>%
+      select(-c(Continent, selected))
   })
+  
+  
   #this outputs the descriptive text for the side panel for the world map
   output$descriptive_text_worldmap = renderText({
     descriptive_text_worldmap
   })
+  
+  output$descriptive_text_ts = renderText({
+    descriptive_text_ts
+  })
+  
 }
 
+
+#Run App
 shinyApp(ui, server)
 
