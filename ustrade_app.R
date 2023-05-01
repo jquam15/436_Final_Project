@@ -169,6 +169,11 @@ ui = fluidPage(
     
   ),
   
+  #add space between plots
+  div(
+    style = "margin-top: 3em;"
+  ),
+  
   sidebarLayout(
     sidebarPanel(
       selectInput("country", "Select a Country: ", unique(ustrade$Country), selected=c("Mexico"), multiple=F),

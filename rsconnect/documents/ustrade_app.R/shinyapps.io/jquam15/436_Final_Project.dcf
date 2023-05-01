@@ -5,10 +5,10 @@ account: jquam15
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 8689792
-bundleId: 7157335
+bundleId: 7157397
 url: https://jquam15.shinyapps.io/436_Final_Project/
-when: 1682902209.88981
-lastSyncTime: 1682902209.89049
+when: 1682903854.09344
+lastSyncTime: 1682903854.09345
 asMultiple: FALSE
 asStatic: FALSE
 ignoredFiles: Austin's Code|exports.csv|imports.csv|process_data.ipynb|README.md|trade_deficits.Rmd|ustrade.csv|ustrade_visualization.Rmd
